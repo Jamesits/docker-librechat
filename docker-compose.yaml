@@ -1,0 +1,62 @@
+services:
+  api:
+    ports:
+      - "3080:3080"
+    depends_on:
+      - mongodb
+      - rag_api
+    image: registry.librechat.ai/danny-avila/librechat-dev:latest
+    restart: "unless-stopped"
+    env_file:
+      - ./deployment/librechat-api.env
+    volumes:
+      # - ./deployment/librechat.yaml:/app/librechat.yaml
+      - ./deployment/librechat/images:/app/client/public/images
+      - ./deployment/librechat/uploads:/app/uploads
+      - ./deployment/librechat/logs:/app/logs
+
+  postgres:
+    image: docker.io/jamesits/postgres:edge
+    platform: linux/amd64
+    restart: "unless-stopped"
+    env_file:
+      - ./deployment/postgres.env
+    volumes:
+      - ./deployment/postgres:/var/lib/postgresql
+
+  mongodb:
+    image: ghcr.io/ferretdb/ferretdb:2.7.0
+    restart: "unless-stopped"
+    env_file:
+      - ./deployment/ferretdb.env
+    depends_on:
+      - postgres
+
+  meilisearch:
+    image: docker.io/getmeili/meilisearch:latest
+    restart: "unless-stopped"
+    env_file:
+      - ./deployment/meilisearch.env
+    volumes:
+      - ./deployment/meilisearch/meili_data:/meili_data
+
+  rag_api:
+    image: registry.librechat.ai/danny-avila/librechat-rag-api-dev-lite:latest
+    environment:
+      - DB_HOST=postgres
+    restart: "unless-stopped"
+    depends_on:
+      - postgres
+    env_file:
+      - ./deployment/librechat-rag.env
+      - ./deployment/postgres.env
+    volumes:
+      - ./deployment/rag_api/uploads:/app/uploads
+
+  admin_panel:
+    image: ghcr.io/clickhouse/librechat-admin-panel:latest
+    restart: "unless-stopped"
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./deployment/librechat-admin-panel.env
